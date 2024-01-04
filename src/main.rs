@@ -1,6 +1,8 @@
 use rand::Rng;
 use rand_distr::{Normal, Distribution};
-use ndarray::{Array1, Array2};
+use ndarray;
+use ndarray::{Array1, Array2, ArrayView1};
+use ndarray_linalg::solve::Inverse;
 use std::f64::consts::PI;
 use plotters::{prelude::*, coord::types::RangedCoordf64};
 
@@ -35,25 +37,38 @@ fn rbf_kernel(x1: f64, x2: f64) -> f64 {
     return theta1 * f64::exp(-(x1 - x2).powi(2) / theta2);
 }
 
-fn compute_covariance_matrix(
+fn compute_gram_matrix(
     x: &Array1<f64>,
     kernel: fn(f64, f64) -> f64) -> Array2<f64> {
 
     let x_len = x.len();
-    let mut cov = Array2::<f64>::zeros((x_len, x_len));
+    let mut mat = Array2::<f64>::zeros((x_len, x_len));
     for (i, x1) in x.iter().enumerate() {
         for (j, x2) in x.iter().enumerate() {
-            cov[[i, j]] = kernel(*x1, *x2);
+            mat[[i, j]] = kernel(*x1, *x2);
         }
     }
-    return cov;
+    return mat;
+}
+
+fn compute_k_star(
+    x_train: ArrayView1<f64>,
+    x_star: ArrayView1<f64>,
+    kernel: fn(f64, f64) -> f64) -> Array2<f64> {
+
+    let mut k_star = Array2::<f64>::zeros((x_train.len(), x_star.len()));
+    for (i, x_train_) in x_train.iter().enumerate() {
+        for (j, x_star_) in x_star.iter().enumerate() {
+            k_star[[i, j]] = kernel(*x_train_, *x_star_);
+        }
+    }
+    return k_star;
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
 
     let num_train = 10;
-
     let normal_dist = Normal::new(0.0, 0.1).unwrap();
     let x_train: Array1::<f64> = (0..num_train)
         .map(|_| {
@@ -61,7 +76,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }).collect();
     let y_train = x_train.map(|&x| sin_func(x) + normal_dist.sample(&mut rng));
 
-    let cov = compute_covariance_matrix(&x_train, rbf_kernel);
+    let x_star = ndarray::array![-1.0, 0.0, 1.5, 2.1];
+    let gram = compute_gram_matrix(&x_train, rbf_kernel);
+    let k_star = compute_k_star(x_train.view(), x_star.view(), rbf_kernel);
+
+    // --- compute transpose(k_star) * inv(gram) * y_train ---
+    let gram_inv = Inverse::inv(&gram);
+    let k_star_t = k_star.t();
+    let result = k_star_t.dot(&gram_inv).dot(&y_train);
 
     // グラフを描画する画像ファイルを作成
     let root = BitMapBackend::new("images/plot.png", (640, 480)).into_drawing_area();
