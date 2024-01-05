@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let k_star_t = k_star.t();
     let y_star = k_star_t.dot(&gram_inv_y);
 
-    // --- compute variance: diag(k_star_t * inv(gram) * k_star) ---
+    // --- compute variance: karkel(x_star, x_star) - diag(k_star_t * inv(gram) * k_star) ---
     let mut gram_inv = Array2::<f64>::zeros((x_train.len(), x_train.len()));
     for i in 0..x_train.len() {
         let mut unit_vector = Array1::<f64>::zeros(x_train.len());
@@ -136,11 +136,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let variance_matrix = k_star_t.dot(&gram_inv).dot(&k_star);
-    let y_star_variance = variance_matrix.diag().to_owned();
+    let k_star_star = compute_k_star(x_star.view(), x_star.view(), rbf_kernel).diag().to_owned();
+    let y_star_variance = k_star_star - variance_matrix.diag().to_owned();
+
     let upper = &y_star + &y_star_variance.mapv(f64::sqrt);
     let lower = &y_star - &y_star_variance.mapv(f64::sqrt);
-
-
 
 
     // グラフを描画する画像ファイルを作成
