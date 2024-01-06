@@ -1,7 +1,8 @@
+mod gausiaan_process;
+
 use rand::Rng;
 use rand_distr::{Normal, Distribution};
-use ndarray::{Array1, Array2, ArrayView1};
-use ndarray_linalg::Solve;
+use ndarray::{Array1, ArrayView1};
 use std::f64::consts::PI;
 use plotters::{prelude::*, coord::types::RangedCoordf64};
 
@@ -78,34 +79,6 @@ fn rbf_kernel(x1: f64, x2: f64) -> f64 {
     return theta1 * f64::exp(-(x1 - x2).powi(2) / theta2);
 }
 
-fn compute_gram_matrix(
-    x: &Array1<f64>,
-    kernel: fn(f64, f64) -> f64) -> Array2<f64> {
-
-    let x_len = x.len();
-    let mut mat = Array2::<f64>::zeros((x_len, x_len));
-    for (i, x1) in x.iter().enumerate() {
-        for (j, x2) in x.iter().enumerate() {
-            mat[[i, j]] = kernel(*x1, *x2);
-        }
-    }
-    return mat;
-}
-
-fn compute_k_star(
-    x_train: ArrayView1<f64>,
-    x_star: ArrayView1<f64>,
-    kernel: fn(f64, f64) -> f64) -> Array2<f64> {
-
-    let mut k_star = Array2::<f64>::zeros((x_train.len(), x_star.len()));
-    for (i, x_train_) in x_train.iter().enumerate() {
-        for (j, x_star_) in x_star.iter().enumerate() {
-            k_star[[i, j]] = kernel(*x_train_, *x_star_);
-        }
-    }
-    return k_star;
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
 
@@ -118,29 +91,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let y_train = x_train.map(|&x| sin_func(x) + normal_dist.sample(&mut rng));
 
     let x_star = ndarray::Array::linspace(-PI, PI, 100);
-    let gram = compute_gram_matrix(&x_train, rbf_kernel);
-    let k_star = compute_k_star(x_train.view(), x_star.view(), rbf_kernel);
 
-    // --- compute mean: transpose(k_star) * inv(gram) * y_train ---
-    let gram_inv_y = gram.solve(&y_train).unwrap();
-    let k_star_t = k_star.t();
-    let y_star = k_star_t.dot(&gram_inv_y);
-
-    // --- compute variance: karkel(x_star, x_star) - diag(k_star_t * inv(gram) * k_star) ---
-    let mut gram_inv = Array2::<f64>::zeros((x_train.len(), x_train.len()));
-    for i in 0..x_train.len() {
-        let mut unit_vector = Array1::<f64>::zeros(x_train.len());
-        unit_vector[i] = 1.0;
-        let col = gram.solve(&unit_vector).unwrap();
-        gram_inv.column_mut(i).assign(&col);
-    }
-
-    let variance_matrix = k_star_t.dot(&gram_inv).dot(&k_star);
-    let k_star_star = compute_k_star(x_star.view(), x_star.view(), rbf_kernel).diag().to_owned();
-    let y_star_variance = k_star_star - variance_matrix.diag().to_owned();
-
-    let upper = &y_star + &y_star_variance.mapv(f64::sqrt);
-    let lower = &y_star - &y_star_variance.mapv(f64::sqrt);
+    let gp = gausiaan_process::GaussianProcess::new(x_train.view(), y_train.view(), rbf_kernel);
+    let (mean, sigma) = gp.predict(x_star.view());
+    let upper = &mean + &sigma;
+    let lower = &mean - &sigma;
 
 
     // グラフを描画する画像ファイルを作成
@@ -161,7 +116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     chart.configure_mesh().draw()?;
 
     draw_points(&mut chart, x_train.view(), y_train.view(), MAGENTA, 5, false)?;
-    draw_line(&mut chart, x_star.view(), y_star.view(), GREEN)?;
+    draw_line(&mut chart, x_star.view(), mean.view(), GREEN)?;
     draw_line(&mut chart, x_star.view(), upper.view(), CYAN)?;
     draw_line(&mut chart, x_star.view(), lower.view(), CYAN)?;
 
