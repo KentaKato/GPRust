@@ -1,21 +1,23 @@
+use crate::kernel_defs::Kernel;
+
 use ndarray::{Array1, Array2, ArrayView1};
 use ndarray_linalg::Solve;
 
-pub struct GaussianProcess {
+pub struct GaussianProcess<K: Kernel> {
     pub x_train: Array1<f64>,
     pub y_train: Array1<f64>,
-    pub kernel: fn(f64, f64) -> f64,
+    pub kernel: K,
     pub gram_matrix: Array2<f64>,
 }
 
 
-impl GaussianProcess {
+impl<K: Kernel> GaussianProcess<K> {
 
     pub fn new(
         x_train: ArrayView1<f64>,
         y_train: ArrayView1<f64>,
-        kernel: fn(f64, f64) -> f64) -> GaussianProcess {
-        let gram_matrix = compute_gram_matrix(&x_train.view(), &x_train.view(), kernel);
+        kernel: K) -> GaussianProcess<K> {
+        let gram_matrix = compute_gram_matrix(&x_train.view(), &x_train.view(), &kernel);
         return GaussianProcess {
             x_train: x_train.to_owned(),
             y_train: y_train.to_owned(),
@@ -28,7 +30,7 @@ impl GaussianProcess {
         &self,
         x_star: ArrayView1<f64>) -> (Array1<f64>, Array1<f64>) {
 
-        let k_star = compute_gram_matrix(&self.x_train.view(), &x_star.view(), self.kernel);
+        let k_star = compute_gram_matrix(&self.x_train.view(), &x_star.view(), &self.kernel);
         let k_star_t = k_star.t();
 
         // --- compute mean: transpose(k_star) * inv(gram) * y_train ---
@@ -46,7 +48,7 @@ impl GaussianProcess {
         }
 
         let variance_matrix = k_star_t.dot(&gram_inv).dot(&k_star);
-        let k_star_star = compute_gram_matrix(&x_star.view(), &x_star.view(), self.kernel).diag().to_owned();
+        let k_star_star = compute_gram_matrix(&x_star.view(), &x_star.view(), &self.kernel).diag().to_owned();
         let y_star_variance = k_star_star - variance_matrix.diag().to_owned();
 
         let sigma = y_star_variance.mapv(f64::sqrt);
@@ -56,15 +58,15 @@ impl GaussianProcess {
 
 }
 
-fn compute_gram_matrix(
+fn compute_gram_matrix<K: Kernel>(
     x1: &ArrayView1<f64>,
     x2: &ArrayView1<f64>,
-    kernel: fn(f64, f64) -> f64) -> Array2<f64> {
+    kernel: &K) -> Array2<f64> {
 
     let mut mat = Array2::<f64>::zeros((x1.len(), x2.len()));
     for (i, x1_elem) in x1.iter().enumerate() {
         for (j, x2_elem) in x2.iter().enumerate() {
-            mat[[i, j]] = kernel(*x1_elem, *x2_elem);
+            mat[[i, j]] = kernel.compute(*x1_elem, *x2_elem);
         }
     }
     return mat;

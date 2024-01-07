@@ -1,4 +1,5 @@
 mod gausiaan_process;
+mod kernel_defs;
 mod plot_utils;
 
 use rand::Rng;
@@ -14,13 +15,6 @@ fn sin_func(x: f64) -> f64 {
     return amp * f64::sin(omega * x + phase);
 }
 
-// Radial Basis Function
-fn rbf_kernel(x1: f64, x2: f64) -> f64 {
-    let theta1 = 0.1;
-    let theta2 = 0.1;
-    return theta1 * f64::exp(-(x1 - x2).powi(2) / theta2);
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
 
@@ -34,7 +28,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let x_star = ndarray::Array::linspace(-PI, PI, 100);
 
-    let gp = gausiaan_process::GaussianProcess::new(x_train.view(), y_train.view(), rbf_kernel);
+    let kernel = kernel_defs::RBFKernel {
+        theta1: 0.1,
+        theta2: 0.1,
+    };
+    let gp = gausiaan_process::GaussianProcess::new(
+        x_train.view(),
+        y_train.view(),
+        kernel);
     let (mean, sigma) = gp.predict(x_star.view());
     let upper = &mean + &sigma;
     let lower = &mean - &sigma;
