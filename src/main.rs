@@ -28,10 +28,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let x_star = ndarray::Array::linspace(-PI, PI, 100);
 
-    let kernel = kernel_defs::RBFKernel {
-        theta1: 0.1,
-        theta2: 0.1,
-    };
+    let kernel = kernel_defs::RBFKernel::new(
+        kernel_defs::Parameter::new(0.1, 2.0, 0.1),
+        kernel_defs::Parameter::new(0.1, 2.0, 0.1),
+    );
     let gp = gausiaan_process::GaussianProcess::new(
         x_train.view(),
         y_train.view(),

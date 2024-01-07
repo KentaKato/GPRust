@@ -17,8 +17,8 @@ impl<K: Kernel> GaussianProcess<K> {
         x_train: ArrayView1<f64>,
         y_train: ArrayView1<f64>,
         kernel: K) -> GaussianProcess<K> {
-        let gram_matrix = compute_gram_matrix(&x_train.view(), &x_train.view(), &kernel);
-        return GaussianProcess {
+        let gram_matrix = compute_gram_matrix(x_train.view(), x_train.view(), &kernel);
+        return Self {
             x_train: x_train.to_owned(),
             y_train: y_train.to_owned(),
             kernel: kernel,
@@ -26,11 +26,27 @@ impl<K: Kernel> GaussianProcess<K> {
         };
     }
 
+    pub fn optimize_hyperparameters(&mut self) {
+        let mut max_likelihood = f64::NEG_INFINITY;
+        // let mut best_kernel = self.kernel.clone();
+        while self.kernel.to_next_param() {
+            let gram_matrix = compute_gram_matrix(self.x_train.view(), self.x_train.view(), &self.kernel);
+            let likelihood = self.kernel.compute_likelihood(gram_matrix.view(), self.y_train.view());
+            if likelihood > max_likelihood {
+                max_likelihood = likelihood;
+
+                best_kernel = self.kernel.clone();
+            }
+        }
+        self.kernel = best_kernel;
+        self.gram_matrix = compute_gram_matrix(self.x_train.view(), self.x_train.view(), &self.kernel);
+    }
+
     pub fn predict(
         &self,
         x_star: ArrayView1<f64>) -> (Array1<f64>, Array1<f64>) {
 
-        let k_star = compute_gram_matrix(&self.x_train.view(), &x_star.view(), &self.kernel);
+        let k_star = compute_gram_matrix(self.x_train.view(),x_star.view(), &self.kernel);
         let k_star_t = k_star.t();
 
         // --- compute mean: transpose(k_star) * inv(gram) * y_train ---
@@ -48,7 +64,7 @@ impl<K: Kernel> GaussianProcess<K> {
         }
 
         let variance_matrix = k_star_t.dot(&gram_inv).dot(&k_star);
-        let k_star_star = compute_gram_matrix(&x_star.view(), &x_star.view(), &self.kernel).diag().to_owned();
+        let k_star_star = compute_gram_matrix(x_star.view(), x_star.view(), &self.kernel).diag().to_owned();
         let y_star_variance = k_star_star - variance_matrix.diag().to_owned();
 
         let sigma = y_star_variance.mapv(f64::sqrt);
@@ -59,8 +75,8 @@ impl<K: Kernel> GaussianProcess<K> {
 }
 
 fn compute_gram_matrix<K: Kernel>(
-    x1: &ArrayView1<f64>,
-    x2: &ArrayView1<f64>,
+    x1: ArrayView1<f64>,
+    x2: ArrayView1<f64>,
     kernel: &K) -> Array2<f64> {
 
     let mut mat = Array2::<f64>::zeros((x1.len(), x2.len()));
