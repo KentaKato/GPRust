@@ -35,7 +35,7 @@ impl<K: Kernel> GaussianProcess<K> {
             if likelihood > max_likelihood {
                 max_likelihood = likelihood;
 
-                best_kernel = self.kernel.clone();
+                best_kernel = ;
             }
         }
         self.kernel = best_kernel;
