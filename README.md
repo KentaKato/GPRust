@@ -4,7 +4,7 @@ GPRust is a naive implementation of Gaussian Process Regression (GPR) using Rust
 
 ## Demo
 ```bash
-git clone git@github.com:KentaKato/gprust.git
+git clone git@github.com:KentaKato/GPRust.git
 cd gprust
 cargo run
 ```
