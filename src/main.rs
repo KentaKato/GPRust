@@ -16,26 +16,40 @@ fn sin_func(x: f64) -> f64 {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
 
     const NUM_TRAIN: i32 = 15;
-    let normal_dist = Normal::new(0.0, 0.1).unwrap();
+    const X_TRAIN_MIN: f64 = -PI;
+    const X_TRAIN_MAX: f64 = PI;
+    const X_STAR_MIN: f64 = -1.25 * PI;
+    const X_STAR_MAX: f64 = 1.25 * PI;
+    const NOISE_STD: f64 = 0.1;
+
+    const CHART_X_MIN: f64 = X_STAR_MIN;
+    const CHART_X_MAX: f64 = X_STAR_MAX;
+    const CHART_Y_MIN: f64 = -1.5;
+    const CHART_Y_MAX: f64 = 1.5;
+
+    let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
+    let normal_dist = Normal::new(0.0, NOISE_STD).unwrap();
     let x_train: Array1::<f64> = (0..NUM_TRAIN)
         .map(|_| {
-            return rng.gen_range(-PI..PI);
+            return rng.gen_range(X_TRAIN_MIN..X_TRAIN_MAX);
         }).collect();
     let y_train = x_train.map(|&x| sin_func(x) + normal_dist.sample(&mut rng));
 
-    let x_star = ndarray::Array::linspace(-PI, PI, 100);
+    let x_star = ndarray::Array::linspace(X_STAR_MIN, X_STAR_MAX, 200);
 
     let kernel = kernel_defs::RBFKernel::new(
-        kernel_defs::Parameter::new(0.1, 2.0, 0.1),
-        kernel_defs::Parameter::new(0.1, 2.0, 0.1),
+        kernel_defs::Parameter::new(0.05, 2.0, 0.05),
+        kernel_defs::Parameter::new(0.1, 5.0, 0.1),
+        kernel_defs::Parameter::new(0.05, 0.15, 0.02),
     );
-    let gp = gausiaan_process::GaussianProcess::new(
+    let mut gp = gausiaan_process::GaussianProcess::new(
         x_train.view(),
         y_train.view(),
         kernel);
+    gp.optimize_hyperparameters();
+
     let (mean, sigma) = gp.predict(x_star.view());
     let upper = &mean + &sigma;
     let lower = &mean - &sigma;
@@ -53,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .margin(5)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(-PI..PI, -1.0..1.0)?;
+        .build_cartesian_2d(CHART_X_MIN..CHART_X_MAX, CHART_Y_MIN..CHART_Y_MAX)?;
 
     // XY軸、グリッド線を描画
     chart.configure_mesh().draw()?;
@@ -64,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     plot_utils::draw_line(&mut chart, x_star.view(), lower.view(), CYAN)?;
 
     // sin関数を描画
-    plot_utils::draw_func(&mut chart, sin_func, (-PI, PI))?;
+    plot_utils::draw_func(&mut chart, sin_func, (X_STAR_MIN, X_STAR_MAX))?;
 
     // 描画が終わったら、画像ファイルを保存
     root.present()?;

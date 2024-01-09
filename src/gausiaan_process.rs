@@ -26,30 +26,38 @@ impl<K: Kernel> GaussianProcess<K> {
         };
     }
 
-    pub fn optimize_hyperparameters(&mut self) {
+    pub fn optimize_hyperparameters(&mut self) -> () {
         let mut max_likelihood = f64::NEG_INFINITY;
-        // let mut best_kernel = self.kernel.clone();
-        while self.kernel.to_next_param() {
+        let mut best_params = self.kernel.get_hyper_params();
+        loop {
             let gram_matrix = compute_gram_matrix(self.x_train.view(), self.x_train.view(), &self.kernel);
             let likelihood = self.kernel.compute_likelihood(gram_matrix.view(), self.y_train.view());
+
             if likelihood > max_likelihood {
                 max_likelihood = likelihood;
-
-                best_kernel = ;
+                best_params = self.kernel.get_hyper_params();
+            }
+            if !self.kernel.to_next_param() {
+                break;
             }
         }
-        self.kernel = best_kernel;
-        self.gram_matrix = compute_gram_matrix(self.x_train.view(), self.x_train.view(), &self.kernel);
+        print!("best hyper params: ");
+        for param in best_params.iter() {
+            print!("{:.2} ", param.value);
+        }
+        self.kernel.set_hyper_params(best_params);
+
     }
 
     pub fn predict(
-        &self,
+        &mut self,
         x_star: ArrayView1<f64>) -> (Array1<f64>, Array1<f64>) {
 
         let k_star = compute_gram_matrix(self.x_train.view(),x_star.view(), &self.kernel);
         let k_star_t = k_star.t();
 
         // --- compute mean: transpose(k_star) * inv(gram) * y_train ---
+        self.gram_matrix = compute_gram_matrix(self.x_train.view(), self.x_train.view(), &self.kernel);
         let gram_inv_y = self.gram_matrix.solve(&self.y_train).unwrap();
         let mean = k_star_t.dot(&gram_inv_y);
 
