@@ -56,6 +56,7 @@ impl Kernel for RBFKernel {
     }
 
     fn to_next_param(&mut self) -> bool {
+        // grid search
         self.theta1.value += self.theta1.step;
         if self.theta1.value > self.theta1.max {
             self.theta1.value = self.theta1.min;
