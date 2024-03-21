@@ -83,11 +83,11 @@ impl Kernel for RBFKernel {
     }
 
     fn get_hyper_params(&self) -> Vec<Parameter> {
-        return vec![
+        vec![
             self.theta1.clone(),
             self.theta2.clone(),
             self.theta3.clone(),
-        ];
+        ]
     }
 
     fn set_hyper_params(&mut self, params: Vec<Parameter>) -> bool {

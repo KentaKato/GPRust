@@ -83,11 +83,5 @@ fn compute_gram_matrix<K: Kernel>(
     x2: ArrayView1<f64>,
     kernel: &K,
 ) -> Array2<f64> {
-    let mut mat = Array2::<f64>::zeros((x1.len(), x2.len()));
-    for (i, x1_elem) in x1.iter().enumerate() {
-        for (j, x2_elem) in x2.iter().enumerate() {
-            mat[[i, j]] = kernel.compute(*x1_elem, *x2_elem);
-        }
-    }
-    return mat;
+    Array2::from_shape_fn((x1.len(), x2.len()), |i, j| kernel.compute(*x1[i], *x2[j]))
 }

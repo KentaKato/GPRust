@@ -24,7 +24,7 @@ fn sin_func(x: f64) -> f64 {
     let amp = 1.0;
     let omega = 1.0;
     let phase = 0.0;
-    return amp * f64::sin(omega * x + phase);
+    amp * f64::sin(omega * x + phase)
 }
 
 fn generate_train_data() -> (Array1<f64>, Array1<f64>) {
@@ -38,7 +38,7 @@ fn generate_train_data() -> (Array1<f64>, Array1<f64>) {
             .collect();
     let y_train = x_train.map(|&x| sin_func(x) + normal_dist.sample(&mut rng));
 
-    return (x_train, y_train);
+    (x_train, y_train)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -98,5 +98,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Save the figure
     root.present()?;
 
-    return Ok(());
+    Ok(())
 }
