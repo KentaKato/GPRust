@@ -2,11 +2,11 @@ mod gausiaan_process;
 mod kernel_defs;
 mod plot_utils;
 
-use rand::Rng;
-use rand_distr::{Normal, Distribution};
 use ndarray::Array1;
-use std::f64::consts::PI;
 use plotters::prelude::*;
+use rand::Rng;
+use rand_distr::{Distribution, Normal};
+use std::f64::consts::PI;
 
 const NUM_TRAIN: i32 = 15;
 const X_TRAIN_MIN: f64 = -PI;
@@ -30,23 +30,23 @@ fn sin_func(x: f64) -> f64 {
 fn generate_train_data() -> (Array1<f64>, Array1<f64>) {
     let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
     let normal_dist = Normal::new(0.0, NOISE_STD).unwrap();
-    let x_train: Array1::<f64> = (0..NUM_TRAIN)
-        .map(|_| {
-            return rng.gen_range(X_TRAIN_MIN..X_TRAIN_MAX);
-        }).collect();
+    let x_train: Array1<f64> =
+        (0..NUM_TRAIN)
+            .map(|_| {
+                return rng.gen_range(X_TRAIN_MIN..X_TRAIN_MAX);
+            })
+            .collect();
     let y_train = x_train.map(|&x| sin_func(x) + normal_dist.sample(&mut rng));
 
     return (x_train, y_train);
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     /* Generate training data */
     let (x_train, y_train) = generate_train_data();
 
     /* Data for prediction */
     let x_star = ndarray::Array::linspace(X_STAR_MIN, X_STAR_MAX, 200);
-
 
     /* Setup Gaussian Process model */
     let kernel = kernel_defs::RBFKernel::new(
@@ -54,10 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         kernel_defs::Parameter::new(0.1, 5.0, 0.1),
         kernel_defs::Parameter::new(0.05, 0.15, 0.02),
     );
-    let mut gp = gausiaan_process::GaussianProcess::new(
-        x_train.view(),
-        y_train.view(),
-        kernel);
+    let mut gp = gausiaan_process::GaussianProcess::new(x_train.view(), y_train.view(), kernel);
 
     /* Optimize hyperparameters */
     gp.optimize_hyperparameters();
@@ -84,7 +81,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     plot_utils::draw_func(&mut chart, sin_func, (X_STAR_MIN, X_STAR_MAX))?;
 
     // Draw the training data
-    plot_utils::draw_points(&mut chart, x_train.view(), y_train.view(), MAGENTA, 5, false)?;
+    plot_utils::draw_points(
+        &mut chart,
+        x_train.view(),
+        y_train.view(),
+        MAGENTA,
+        5,
+        false,
+    )?;
 
     // Draw the mean and variance of the prediction
     plot_utils::draw_line(&mut chart, x_star.view(), mean.view(), GREEN)?;
@@ -95,5 +99,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     root.present()?;
 
     return Ok(());
-
 }
