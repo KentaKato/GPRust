@@ -10,19 +10,21 @@ pub struct Parameter {
 }
 
 impl Parameter {
-    pub fn new(min: f64, max: f64, step: f64) -> Parameter {
-        return Self {
+    pub fn new(min: f64, max: f64, step: f64) -> Self {
+        Self {
             value: min,
-            min: min,
-            max: max,
-            step: step,
-        };
+            min,
+            max,
+            step,
+        }
     }
 }
 
 pub trait Kernel {
     fn compute(&self, x1: f64, x2: f64) -> f64;
-    fn to_next_param(&mut self) -> bool {true}
+    fn to_next_param(&mut self) -> bool {
+        true
+    }
     fn compute_likelihood(&self, gram_matrix: ArrayView2<f64>, y: ArrayView1<f64>) -> f64;
     fn get_hyper_params(&self) -> Vec<Parameter>;
     fn set_hyper_params(&mut self, params: Vec<Parameter>) -> bool;
@@ -37,12 +39,12 @@ pub struct RBFKernel {
 }
 
 impl RBFKernel {
-    pub fn new(theta1: Parameter, theta2: Parameter, theta3: Parameter) -> RBFKernel {
-        return Self {
-            theta1: theta1,
-            theta2: theta2,
-            theta3: theta3,
-        };
+    pub fn new(theta1: Parameter, theta2: Parameter, theta3: Parameter) -> Self {
+        Self {
+            theta1,
+            theta2,
+            theta3,
+        }
     }
 }
 
@@ -52,7 +54,7 @@ impl Kernel for RBFKernel {
         if (x1 - x2).abs() < 1e-6 {
             val += self.theta3.value;
         }
-        return val;
+        val
     }
 
     fn to_next_param(&mut self) -> bool {
@@ -69,7 +71,7 @@ impl Kernel for RBFKernel {
                 }
             }
         }
-        return true;
+        true
     }
 
     fn compute_likelihood(&self, gram_matrix: ArrayView2<f64>, y: ArrayView1<f64>) -> f64 {
@@ -81,7 +83,11 @@ impl Kernel for RBFKernel {
     }
 
     fn get_hyper_params(&self) -> Vec<Parameter> {
-        return vec![self.theta1.clone(), self.theta2.clone(), self.theta3.clone()];
+        vec![
+            self.theta1.clone(),
+            self.theta2.clone(),
+            self.theta3.clone(),
+        ]
     }
 
     fn set_hyper_params(&mut self, params: Vec<Parameter>) -> bool {
@@ -91,7 +97,6 @@ impl Kernel for RBFKernel {
         self.theta1 = params[0].clone();
         self.theta2 = params[1].clone();
         self.theta3 = params[2].clone();
-        return true;
+        true
     }
-
 }
