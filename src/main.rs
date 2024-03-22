@@ -1,4 +1,4 @@
-mod gausiaan_process;
+mod gaussian_process;
 mod kernel_defs;
 mod plot_utils;
 
@@ -30,12 +30,9 @@ fn sin_func(x: f64) -> f64 {
 fn generate_train_data() -> (Array1<f64>, Array1<f64>) {
     let mut rng = rand::thread_rng(); // 乱数ジェネレータを初期化
     let normal_dist = Normal::new(0.0, NOISE_STD).unwrap();
-    let x_train: Array1<f64> =
-        (0..NUM_TRAIN)
-            .map(|_| {
-                return rng.gen_range(X_TRAIN_MIN..X_TRAIN_MAX);
-            })
-            .collect();
+    let x_train: Array1<f64> = (0..NUM_TRAIN)
+        .map(|_| rng.gen_range(X_TRAIN_MIN..X_TRAIN_MAX))
+        .collect();
     let y_train = x_train.map(|&x| sin_func(x) + normal_dist.sample(&mut rng));
 
     (x_train, y_train)
@@ -54,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         kernel_defs::Parameter::new(0.1, 5.0, 0.1),
         kernel_defs::Parameter::new(0.05, 0.15, 0.02),
     );
-    let mut gp = gausiaan_process::GaussianProcess::new(x_train.view(), y_train.view(), kernel);
+    let mut gp = gaussian_process::GaussianProcess::new(x_train.view(), y_train.view(), kernel);
 
     /* Optimize hyperparameters */
     gp.optimize_hyperparameters();
